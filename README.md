@@ -52,7 +52,7 @@ master:
   (with-out-str
     (c/emit
       (ensure
-        (ana/analyze-keyword
+        (ana/analyze
           (assoc (ana/empty-env) :context :expr)
           :foo)))))
 ```
