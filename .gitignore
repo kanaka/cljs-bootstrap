@@ -11,4 +11,5 @@ pom.xml.asc
 .hg/
 node_modules
 .cljs_node_repl
+.cljs_bootstrap
 .idea
