@@ -84,6 +84,8 @@ return (a * b);
 }>
 cljs-bootstrap.repl> (foo 6 7)
 42
+cljs-bootstrap.repl> (let* [x 7 y (+ 1 x)] y)
+8
 ```
 
 * Try some things that do not work:
@@ -101,5 +103,17 @@ SyntaxError: Unexpected string
 
 cljs-bootstrap.repl> (ns my-ns) ;; Does nothing
 nil
+
+cljs-bootstrap.repl> (and 1 2 3 4)
+(let* nil)
+
+cljs-bootstrap.repl> (let [x 2] x)
+TypeError: Cannot read property 'call' of undefined
+...
+
+cljs-bootstrap.repl> (let [x 7] x)
+TypeError: Cannot read property 'call' of undefined
+...
+
 
 ```
