@@ -19,24 +19,33 @@
   ;;(if (not (.exists (io/as-file "resources/cljs/core.cljc"))))
   (spit "resources/cljs/core.cljc" (slurp (io/resource "cljs/core.cljc")))
   (spit "resources/cljs/core.cljs" (slurp (io/resource "cljs/core.cljs")))
+  ;; Compilation core.cljc below breaks if the cache file is present
+  (io/delete-file "resources/cljs/core.cljs.cache.aot.edn" true)
 
-  (env/with-compiler-env (env/default-compiler-env opts)
-    (let [output-dir (io/file dir)
-          copts (assoc opts :output-dir output-dir)
-          ;; Generate core$macros
-          deps-macros (compile1 copts "cljs/core.cljc")
-          ;; Compile main file
-          deps (compile1 copts file)]
-        ;; output unoptimized code and the deps file
-        ;; for all compiled namespaces
-        (apply closure/output-unoptimized
-          (assoc copts
-            :output-to (.getPath (io/file output-dir "cljs_bootstrap_deps.js")))
-          (concat deps deps-macros))
-        ;; Google Closure Library node compatibility shim
-        (let [path (.getPath (io/file output-dir "goog/bootstrap/nodejs.js"))]
-          (io/make-parents path)
-          (spit path (slurp (io/resource "cljs/bootstrap_node.js")))))))
+  (let [output-dir (io/file dir)
+        copts (assoc opts
+                     :output-dir output-dir
+                     :cache-analysis true
+                     :source-map true
+                     :def-emits-var true)]
+    (env/with-compiler-env (env/default-compiler-env opts)
+      (let [;; Generate core$macros
+            deps-macros (compile1 copts "cljs/core.cljc")
+            ;; Compile main file
+            deps (compile1 copts file)]
+          ;; output unoptimized code and the deps file
+          ;; for all compiled namespaces
+          (apply closure/output-unoptimized
+            (assoc copts
+              :output-to (.getPath (io/file output-dir "cljs_bootstrap_deps.js")))
+            (concat deps deps-macros))
+          ;; Google Closure Library node compatibility shim
+          (let [path (.getPath (io/file output-dir "goog/bootstrap/nodejs.js"))]
+            (io/make-parents path)
+            (spit path (slurp (io/resource "cljs/bootstrap_node.js")))))))
+
+  ;; TODO: this should really come from the compilation above
+  (spit "resources/cljs/core.cljs.cache.aot.edn" (slurp (io/resource "cljs/core.cljs.cache.aot.edn"))))
 
 (println "Building cljs_bootstrap")
 ;;(build ".cljs_bootstrap" "cljs_bootstrap/core.cljs" nil)

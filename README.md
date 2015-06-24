@@ -2,6 +2,9 @@
 
 Use ClojureScript to compile itself.
 
+NOTE: this is a fork of https://github.com/swannodette/cljs-bootstrap
+that adds a simple REPL. See [REPL.md](REPL.md).
+
 ## Usage
 
 Install [ClojureScript](http://github.com/clojure/clojurescript) from master. 
