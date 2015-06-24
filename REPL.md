@@ -12,16 +12,16 @@ Here is the step-by-step process to get a very simple REPL going:
 
 * First, check out the repositories:
 
-```
+```bash
 git clone https://github.com/clojure/clojurescript
-git clone https://github.com/kanaka/cljs-bootstrap
 git clone https://github.com/swannodette/tools.reader
+git clone https://github.com/kanaka/cljs-bootstrap
 ```
 
 * Build and install the regular ClojureScript compiler and patched
   reader:
 
-```
+```bash
 cd clojurescript
 time ./script/build
 # Note the version of ClojureScript that is built.
@@ -34,30 +34,30 @@ cd ..
 
 * Update the cljs-bootstrap `project.def` with the version of
   ClojureScript that was built above and then install Node/npm
-  dependencies (source-map and readline-sync):
+  dependencies (source-map-support and readline-sync):
 
-```
+```bash
 cd cljs-bootstrap
 vi project.def # update to correct ClojureScript version
 lein npm install
 ```
 
-* Build ClojureScript compiler and simple REPL (this compiles to
-  JavaScript in the `.cljs_bootstrap/` directory):
+* Bootstrap build the ClojureScript compiler and simple REPL (this
+  compiles to JavaScript in the `.cljs_bootstrap/` directory):
 
-```
+```bash
 time lein run -m clojure.main script/build.clj
 ```
 
 * Run the REPL using a Node launch script:
 
-```
+```bash
 node repl.js
 ```
 
 * Try some code that works:
 
-```
+```clojure
 cljs-bootstrap.repl> :foo
 :foo
 cljs-bootstrap.repl> 123
@@ -80,7 +80,7 @@ cljs-bootstrap.repl> (do (prn :foo) (prn :bar) :baz)
 
 * Try some things that do not work:
 
-```
+```clojure
 cljs-bootstrap.repl> (def x 3)
 SyntaxError: Unexpected token .
 ...
