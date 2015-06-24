@@ -76,15 +76,22 @@ cljs-bootstrap.repl> (do (prn :foo) (prn :bar) :baz)
 :foo
 :bar
 :baz
+cljs-bootstrap.repl> (def x 3)
+3
+cljs-bootstrap.repl> (def foo (fn [a b] (* a b)))
+#<function cljs_bootstrap$repl$foo(a,b){
+return (a * b);
+}>
+cljs-bootstrap.repl> (foo 6 7)
+42
 ```
 
 * Try some things that do not work:
 
 ```clojure
-cljs-bootstrap.repl> (def x 3)
-SyntaxError: Unexpected token .
+cljs-bootstrap.repl> (defn bar [a b] (* a b))
+Error
 ...
-
 cljs-bootstrap.repl> (load-file "simple.cljs")  ; Treated as JS file
 simple.cljs:1
 (prn "here we are")
