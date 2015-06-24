@@ -37,7 +37,7 @@
           ;; for all compiled namespaces
           (apply closure/output-unoptimized
             (assoc copts
-              :output-to (.getPath (io/file output-dir "cljs_bootstrap_deps.js")))
+              :output-to (.getPath (io/file output-dir "deps.js")))
             (concat deps deps-macros))
           ;; Google Closure Library node compatibility shim
           (let [path (.getPath (io/file output-dir "goog/bootstrap/nodejs.js"))]
