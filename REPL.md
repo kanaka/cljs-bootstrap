@@ -84,16 +84,21 @@ return (a * b);
 }>
 cljs-bootstrap.repl> (foo 6 7)
 42
+cljs-bootstrap.repl> (defn bar [a b] (* a b))
+#<function cljs_bootstrap$repl$bar(a,b){
+return (a * b);
+}>
+cljs-bootstrap.repl> (bar 7 8)
+56
 cljs-bootstrap.repl> (let* [x 7 y (+ 1 x)] y)
 8
+cljs-bootstrap.repl> (meta (with-meta [2 3 4] {:a 123}))
+{:a 123}
 ```
 
 * Try some things that do not work:
 
 ```clojure
-cljs-bootstrap.repl> (defn bar [a b] (* a b))
-Error
-...
 cljs-bootstrap.repl> (load-file "simple.cljs")  ; Treated as JS file
 simple.cljs:1
 (prn "here we are")
@@ -108,10 +113,6 @@ cljs-bootstrap.repl> (and 1 2 3 4)
 (let* nil)
 
 cljs-bootstrap.repl> (let [x 2] x)
-TypeError: Cannot read property 'call' of undefined
-...
-
-cljs-bootstrap.repl> (let [x 7] x)
 TypeError: Cannot read property 'call' of undefined
 ...
 
