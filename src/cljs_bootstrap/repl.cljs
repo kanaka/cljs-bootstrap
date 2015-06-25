@@ -49,7 +49,7 @@
 
 (defn read-eval-print-loop []
   (binding [ana/*cljs-ns* 'cljs-bootstrap.repl
-            *ns* (create-ns 'cljs.analyzer)
+            *ns* (create-ns 'cljs-bootstrap.repl)
             r/*data-readers* tags/*cljs-data-readers*]
     (with-compiler-env cenv
       (let [env (assoc (ana/empty-env) :context :expr
