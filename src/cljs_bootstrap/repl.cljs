@@ -53,7 +53,8 @@
             r/*data-readers* tags/*cljs-data-readers*]
     (with-compiler-env cenv
       (let [env (assoc (ana/empty-env) :context :expr
-                                       :ns {:name 'cljs-bootstrap.repl})]
+                                       :ns {:name 'cljs-bootstrap.repl}
+                                       :def-emits-var true)]
         (loop []
           (try
             (let [line (.question rl "cljs-bootstrap.repl> "
