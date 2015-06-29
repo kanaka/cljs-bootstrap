@@ -14,7 +14,7 @@ Here is the step-by-step process to get a very simple REPL going:
 
 ```bash
 git clone https://github.com/clojure/clojurescript
-git clone https://github.com/swannodette/tools.reader
+git clone --branch cljs-bootstrap https://github.com/swannodette/tools.reader
 git clone https://github.com/kanaka/cljs-bootstrap
 ```
 
@@ -94,6 +94,10 @@ cljs-bootstrap.repl> (let* [x 7 y (+ 1 x)] y)
 8
 cljs-bootstrap.repl> (meta (with-meta [2 3 4] {:a 123}))
 {:a 123}
+cljs-bootstrap.repl> (let [[x y] [3 4] z (+ x y)] (* x y z))
+84
+cljs-bootstrap.repl> (and 1 2 3 4)
+4
 ```
 
 * Try some things that do not work:
@@ -108,13 +112,5 @@ SyntaxError: Unexpected string
 
 cljs-bootstrap.repl> (ns my-ns) ;; Does nothing
 nil
-
-cljs-bootstrap.repl> (and 1 2 3 4)
-(let* nil)
-
-cljs-bootstrap.repl> (let [x 2] x)
-TypeError: Cannot read property 'call' of undefined
-...
-
 
 ```
