@@ -1,5 +1,7 @@
 #!/bin/bash
 
+set -e
+
 TARGET=repl-all.js
 TOP_DIR=.cljs_bootstrap/goog/
 dep_file=../deps.js
@@ -26,7 +28,8 @@ goog_deps="
     array/array.js
     string/stringbuffer.js
     "
-deps="$(cat ${TOP_DIR}/${dep_file} | awk -F'"' '{print $2}' | egrep -v '^base.js$|core\$macros.js')"
+#deps="$(cat ${TOP_DIR}/${dep_file} | awk -F'"' '{print $2}' | egrep -v '^base.js$|core\$macros.js')"
+deps="$(cat ${TOP_DIR}/${dep_file} | awk -F'"' '{print $2}' | egrep -v '^base.js$')"
 
 # Google Closure deps if they actually exist
 real_goog_deps=""
@@ -42,14 +45,12 @@ deps="${real_goog_deps} ${deps}"
 
 
 ### Add Closure library node bootstrap and then base.js at beginning
-##deps="bootstrap/nodejs.js base.js deps.js ${deps}"
-##deps="base.js deps.js ${deps}"
-
 echo "Patching base.js"
 cp ${TOP_DIR}/base.js ${TOP_DIR}/base-node.js
 patch ${TOP_DIR}/base-node.js ${BASE_PATCH}
-#deps="bootstrap/nodejs.js base-node.js ${deps}"
-deps="base-node.js ${deps}"
+#deps="bootstrap/nodejs.js base-node.js deps.js ../deps.js ${deps}"
+#deps="../../node_modules/readline-sync/lib/readline-sync.js base-node.js deps.js ../deps.js ${deps}"
+deps="base-node.js deps.js ../deps.js ${deps}"
 
 declare -A dep_map
 
@@ -62,26 +63,21 @@ var fs        = require("fs");
 var vm        = require("vm");
 function nodeGlobalRequire(file) {
   var _module = global.module, _exports = global.exports;
-  //var prev_goog = global.goog;
-  //global.goog = goog;
   global.module = undefined;
   global.exports = undefined;
   vm.runInThisContext(fs.readFileSync(file), file);
   global.exports = _exports;
   global.module = _module;
-  //global.goog = prev_goo;
 }
 var goog = {nodeGlobalRequire: nodeGlobalRequire};
 global.goog = goog;
 ' >> ${TARGET}
 
-#cat ${TOP_DIR}/bootstrap/nodejs.js \
-#    | sed \
-#        -e 's@^\(global.goog =.*$\)@//\1\nvar goog = {};@' \
-#        -e 's@^\(nodeGlobalRequire.*base.js.*$\)@//\1\n@' \
-#        >> ${TARGET}
-
-cmd="java -jar ${COMPILER_JAR} --compilation_level WHITESPACE_ONLY --formatting PRETTY_PRINT"
+cmd="java -jar ${COMPILER_JAR} \
+          --compilation_level WHITESPACE_ONLY \
+          --formatting PRETTY_PRINT"
+#          --process_common_js_modules \
+#          --common_js_entry_module=.cljs_bootstrap/cljs_bootstrap/repl.js"
 for dep in ${deps}; do
     if [ -z "${dep_map[${dep}]}" ]; then
         dep_map[${dep}]=done
@@ -90,17 +86,25 @@ for dep in ${deps}; do
     fi
 done
 
+# Grab these before we change directories
+CORE_EDN="$(node -e 'console.log(require("util").inspect(require("fs").readFileSync("resources/cljs/core.cljs.cache.aot.edn", "utf-8")))')"
+MACROS_EDN="$(node -e 'console.log(require("util").inspect(require("fs").readFileSync(".cljs_bootstrap/cljs/core\$macros.cljc.cache.edn", "utf-8")))')"
+
 echo "Doing closure compilation"
 cd ${TOP_DIR}
 echo "${cmd} >> ${TARGET}"
 ${cmd} >> ${TARGET} 
 
 echo "Patching up ${TARGET}"
-#sed -i 's@\(goog.NODE_JS *= *\)false;@\1true;goog.nodeGlobalRequire=function(){console.log("NOPE!")};@' ${TARGET}
 # TODO: Use `--define goog.NODE_JS=true` above if only it would work
 sed -i 's@\(goog.NODE_JS *= *\)false;@\1true;@' ${TARGET}
-sed -i 's@if(goog.isProvided_(name))throw @if(goog.isProvided_(name) \&\& false)throw@' ${TARGET}
-#sed -i 's@if(goog.isProvided_(name))throw @Z@' ${TARGET}
 
-echo "Adding call to read_eval_print_loop"
+echo "Adding inline edn caches"
+echo "
+core_edn_cache = ${CORE_EDN};
+macros_edn_cache = ${MACROS_EDN};
+" >> ${TARGET}
+
+echo "Adding calls to load_cache and read_eval_print_loop"
+echo "cljs_bootstrap.repl.load_edn_caches(core_edn_cache, macros_edn_cache);" >> ${TARGET}
 echo "cljs_bootstrap.repl.read_eval_print_loop();" >> ${TARGET}

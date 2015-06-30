@@ -7,5 +7,4 @@
                  [org.clojure/clojurescript "0.0-3422"]
                  [org.clojure/tools.reader "0.10.0-SNAPSHOT"]]
   :plugins [[lein-npm "0.5.0"]]
-  :node-dependencies [[source-map-support "0.3.1"
-                       readline-sync "1.2.19"]])
+  :node-dependencies [[source-map-support "0.3.1"]])

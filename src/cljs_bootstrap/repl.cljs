@@ -19,33 +19,48 @@
   (prn "DEBUG start cljs-bootstrap.repl"))
 
 ;;(apply load-file ["./.cljs_node_repl/cljs/core$macros.js"])
-(apply load-file ["./.cljs_bootstrap/cljs/core$macros.js"])
+(if (goog/isProvided_ "cljs.core$macros")
+  true ;; Already loaded, probably single file build
+  (apply load-file ["./.cljs_bootstrap/cljs/core$macros.js"]))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Synchronous line-at-a-time input
+;;   probably UNIX specific
+
+;;(def rl (js/require "readline-sync"))
+(defn get-line [prompt]
+  (let [fs (js/require "fs")
+        _ (.write (.-stdout js/process) prompt)
+        fd (.openSync fs "/dev/tty" "r")
+        buf (js/Buffer. 1024)
+        sz (.readSync fs fd buf 0 1024)]
+    (if (= 0 sz)
+      nil
+      (.toString buf "utf8" 0 (- sz 1)))))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Compiler environment
 
 (def cenv (env/default-compiler-env))
 
-;;;;;;;;;;;;;;
-(def fs (js/require "fs"))
+;; load edn namespace caches into compiler environment
+(defn load-edn-caches [core-edn macros-edn]
+  (swap! cenv assoc-in [::ana/namespaces 'cljs.core]
+    (edn/read-string core-edn))
+  (swap! cenv assoc-in [::ana/namespaces 'cljs.core$macros]
+    (edn/read-string macros-edn)))
 
-;; load cache files
+;; load namespace cache files
+(defn load-edn-cache-files []
+  (let [fs (js/require "fs")
+        core-edn (.readFileSync fs "resources/cljs/core.cljs.cache.aot.edn" "utf8")
+        macros-edn (.readFileSync fs ".cljs_bootstrap/cljs/core$macros.cljc.cache.edn" "utf8")]
+    (load-edn-caches core-edn macros-edn)))
 
-(def core-edn (.readFileSync fs "resources/cljs/core.cljs.cache.aot.edn" "utf8"))
-
-(goog/isString core-edn)
-
-(swap! cenv assoc-in [::ana/namespaces 'cljs.core]
-  (edn/read-string core-edn))
-
-(def macros-edn (.readFileSync fs ".cljs_bootstrap/cljs/core$macros.cljc.cache.edn" "utf8"))
-
-(goog/isString macros-edn)
-
-(swap! cenv assoc-in [::ana/namespaces 'cljs.core$macros]
-  (edn/read-string macros-edn))
-;;;;;;;;;;;;;;
-
-
-;; TODO: get EOF/Ctrl-D working
-(def rl (js/require "readline-sync"))
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Main REPL loop
+;;   - call load-edn-caches or load-edn-cache-files first to setup
+;;     compiler environment
 
 (defn read-eval-print-loop []
   (binding [ana/*cljs-ns* 'cljs-bootstrap.repl
@@ -56,19 +71,18 @@
                                        :ns {:name 'cljs-bootstrap.repl}
                                        :def-emits-var true)]
         (loop []
-          (try
-            (let [line (.question rl "cljs-bootstrap.repl> "
-                                  #js {:keepWhitespace true})
-                  _ (when DEBUG (prn "line:" line))
-                  form (r/read-string line)
-                  _ (when DEBUG (prn "form:" form))
-                  ast (no-warn (ana/analyze env form))
-                  _ (when DEBUG (prn "ast:" ast))
-                  js (with-out-str
-                       (ensure
-                        (c/emit ast)))
-                  _ (when DEBUG (prn "js:" js))]
-              (println (js/eval js)))
-            (catch js/Error e
-              (.log js/console (.-stack e))))
-          (recur))))))
+          (when-let [line (get-line "cljs-bootstrap.repl> ")]
+            (when DEBUG (prn "line:" line))
+            (try
+              (let [form (r/read-string line)
+                    _ (when DEBUG (prn "form:" form))
+                    ast (no-warn (ana/analyze env form))
+                    _ (when DEBUG (prn "ast:" ast))
+                    js (with-out-str
+                         (ensure
+                          (c/emit ast)))
+                    _ (when DEBUG (prn "js:" js))]
+                (println (js/eval js)))
+              (catch js/Error e
+                (.log js/console (.-stack e))))
+            (recur)))))))
