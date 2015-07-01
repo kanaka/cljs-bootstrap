@@ -77,17 +77,13 @@ cljs-bootstrap.repl> (do (prn :foo) (prn :bar) :baz)
 :bar
 :baz
 cljs-bootstrap.repl> (def x 3)
-3
+#'cljs-bootstrap.repl/x
 cljs-bootstrap.repl> (def foo (fn [a b] (* a b)))
-#<function cljs_bootstrap$repl$foo(a,b){
-return (a * b);
-}>
+#'cljs-bootstrap.repl/foo
 cljs-bootstrap.repl> (foo 6 7)
 42
 cljs-bootstrap.repl> (defn bar [a b] (* a b))
-#<function cljs_bootstrap$repl$bar(a,b){
-return (a * b);
-}>
+#'cljs-bootstrap.repl/bar
 cljs-bootstrap.repl> (bar 7 8)
 56
 cljs-bootstrap.repl> (let* [x 7 y (+ 1 x)] y)
@@ -98,6 +94,8 @@ cljs-bootstrap.repl> (let [[x y] [3 4] z (+ x y)] (* x y z))
 84
 cljs-bootstrap.repl> (and 1 2 3 4)
 4
+cljs-bootstrap.repl> (map #(.toUpperCase %) ["hello" "allcaps" "world"])
+("HELLO" "ALLCAPS" "WORLD")
 ```
 
 * Try some things that do not work:

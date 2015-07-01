@@ -82,7 +82,7 @@
                          (ensure
                           (c/emit ast)))
                     _ (when DEBUG (prn "js:" js))]
-                (println (js/eval js)))
+                (prn (js/eval js)))
               (catch js/Error e
                 (.log js/console (.-stack e))))
             (recur)))))))
