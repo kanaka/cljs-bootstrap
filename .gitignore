@@ -12,4 +12,5 @@ pom.xml.asc
 node_modules
 .cljs_node_repl
 .cljs_bootstrap
-.idea
+.repl*
+resources/js
