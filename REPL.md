@@ -8,7 +8,15 @@ build script that compiles the ClojureScript compiler to JavaScript.
 This is a work in progress and many things do not work yet. For
 example, `(first [3 4 5])` works but `(def x 3)` does not yet work.
 
-Here is the step-by-step process to get a very simple REPL going:
+If you just want to the bootstrapped ClojureScript REPL, you can
+download a pre-built version and run it like this:
+
+```
+wget https://gist.githubusercontent.com/kanaka/b588dbb6d44174672cc2/raw/90718328795e21b18b6828f91fd69b7a3da9f05b/repl-all.js
+node repl-all.js
+```
+
+To build the bootstrapped REPL, follow these steps:
 
 * First, check out the repositories:
 
@@ -47,6 +55,13 @@ lein npm install
 
 ```bash
 time lein run -m clojure.main script/build.clj
+```
+
+* Optionally, you can now build/compile the sources into a single
+  standalone JavaScript file `repl-all.js` (as per the gist above):
+
+```
+./script/gen_single.sh
 ```
 
 * Run the REPL using a Node launch script:
