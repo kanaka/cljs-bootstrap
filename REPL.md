@@ -5,8 +5,10 @@ adds a very simple bootstrapped REPL. This means that it can run with
 only JavaScirpt files (i.e. without a JVM). Also included is a Clojure
 build script that compiles the ClojureScript compiler to JavaScript.
 
-This is a work in progress and many things do not work yet. For
-example, `(first [3 4 5])` works but `(def x 3)` does not yet work.
+This is a work in progress and many things work but there are still
+many bugs (see examples below).
+
+## Just the REPL please ##
 
 If you just want to the bootstrapped ClojureScript REPL, you can
 download a pre-built version and run it like this:
@@ -15,6 +17,8 @@ download a pre-built version and run it like this:
 wget https://gist.githubusercontent.com/kanaka/b588dbb6d44174672cc2/raw/90718328795e21b18b6828f91fd69b7a3da9f05b/repl-all.js
 node repl-all.js
 ```
+
+## Build the REPL ##
 
 To build the bootstrapped REPL, follow these steps:
 
@@ -69,6 +73,9 @@ time lein run -m clojure.main script/build.clj
 ```bash
 node repl.js
 ```
+
+## Examples ##
+
 
 * Try some code that works:
 
