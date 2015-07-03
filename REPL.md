@@ -12,7 +12,7 @@ many bugs (see examples below).
 
 If you just want to the bootstrapped ClojureScript REPL, you try the
 web version at
-[http://kanaka.github.io/cljs-bootstrap/](http://kanaka.github.io/cljs-bootstrap/)
+[clojurescript.net](http://clojurescript.net)
 can download a pre-built Node.js version and run it like this:
 
 ```
