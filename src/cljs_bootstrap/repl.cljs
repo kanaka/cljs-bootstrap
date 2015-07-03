@@ -86,3 +86,22 @@
               (catch js/Error e
                 (.log js/console (.-stack e))))
             (recur)))))))
+
+(defn read-eval [line]
+  (binding [ana/*cljs-ns* 'cljs-bootstrap.repl
+            *ns* (create-ns 'cljs-bootstrap.repl)
+            r/*data-readers* tags/*cljs-data-readers*]
+    (with-compiler-env cenv
+      (let [env (assoc (ana/empty-env) :context :expr
+                                       :ns {:name 'cljs-bootstrap.repl}
+                                       :def-emits-var true)]
+        (when DEBUG (prn "line:" line))
+        (let [form (r/read-string line)
+              _ (when DEBUG (prn "form:" form))
+              ast (ana/analyze env form)
+              _ (when DEBUG (prn "ast:" ast))
+              js (with-out-str
+                   (ensure
+                    (c/emit ast)))
+              _ (when DEBUG (prn "js:" js))]
+          (js/eval js))))))

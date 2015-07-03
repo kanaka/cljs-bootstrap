@@ -3,7 +3,9 @@
 set -e
 
 VERBOSE=${VERBOSE:-}
-TARGET=${TARGET:-repl-all.js}
+WEB=${WEB:-}
+[ "${WEB}" ] && deftarget=repl-web.js || deftarget=repl-node.js
+TARGET=${TARGET:-${deftarget}}
 TOP_DIR=${TOP_DIR:-.cljs_bootstrap/goog/}
 DEP_FILE=${DEP_FILE:-../deps.js}
 COMPILER_JAR=${COMPILER_JAR:-compiler.jar}
@@ -21,6 +23,7 @@ fi
 COMPILER_JAR=$(readlink -f ${COMPILER_JAR})
 CORE_EDN=$(readlink -f ${CORE_EDN})
 MACROS_EDN=$(readlink -f ${MACROS_EDN})
+
 
 echo "Reading main deps file ${TOP_DIR}/${DEP_FILE}"
 deps="$(cat ${TOP_DIR}/${DEP_FILE} | awk -F'"' '{print $2}' | egrep -v '^base.js$')"
@@ -44,17 +47,22 @@ done
 deps="${real_goog_deps} ${deps}"
 
 
-echo "Adding patched base.js and deps files to the beginning of deps"
-cp ${TOP_DIR}/base.js ${TOP_DIR}/base-node.js
-if [ "${VERBOSE}" ]; then
-    patch ${TOP_DIR}/base-node.js ${BASE_PATCH}
+if [ "${WEB}" ]; then
+    echo "Adding base.js and deps files to the beginning of deps"
+    deps="base.js deps.js ${DEP_FILE} ${deps}"
 else
-    patch -s ${TOP_DIR}/base-node.js ${BASE_PATCH}
-fi
-deps="base-node.js deps.js ${DEP_FILE} ${deps}"
+    echo "Adding patched base.js and deps files to the beginning of deps"
+    cp ${TOP_DIR}/base.js ${TOP_DIR}/base-node.js
+    if [ "${VERBOSE}" ]; then
+        patch ${TOP_DIR}/base-node.js ${BASE_PATCH}
+    else
+        patch -s ${TOP_DIR}/base-node.js ${BASE_PATCH}
+    fi
+    deps="base-node.js deps.js ${DEP_FILE} ${deps}"
 
-echo "Adding Closure node bootstrap to the beginning of deps"
-deps="bootstrap/nodejs.js base-node.js deps.js ../deps.js ${deps}"
+    echo "Adding Closure node bootstrap to the beginning of deps"
+    deps="bootstrap/nodejs.js base-node.js deps.js ../deps.js ${deps}"
+fi
 
 # Start with empty file
 cat /dev/null > ${TARGET}
@@ -78,9 +86,11 @@ cd ${TOP_DIR}
 [ "${VERBOSE}" ] && echo "${cmd} >> ${TARGET}"
 ${cmd} >> ${TARGET} 
 
-echo "Enabling NODE_JS setting in ${TARGET}"
-# TODO: Use `--define goog.NODE_JS=true` above if only it would work
-sed -i 's@\(goog.NODE_JS *= *\)false;@\1true;@' ${TARGET}
+if [ -z "${WEB}" ]; then
+    echo "Enabling NODE_JS setting in ${TARGET}"
+    # TODO: Use `--define goog.NODE_JS=true` above if only it would work
+    sed -i 's@\(goog.NODE_JS *= *\)false;@\1true;@' ${TARGET}
+fi
 
 echo "Loading EDN cache files using node"
 # Grab these before we change directories
@@ -95,6 +105,8 @@ macros_edn_cache = ${macros_edn};
 
 echo "Adding calls to load_cache and read_eval_print_loop"
 echo "cljs_bootstrap.repl.load_edn_caches(core_edn_cache, macros_edn_cache);" >> ${TARGET}
-echo "cljs_bootstrap.repl.read_eval_print_loop();" >> ${TARGET}
+if [ -z "${WEB}" ]; then
+    echo "cljs_bootstrap.repl.read_eval_print_loop();" >> ${TARGET}
+fi
 
 echo "Finished: ${TARGET}"
