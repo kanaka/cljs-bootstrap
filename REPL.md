@@ -10,8 +10,10 @@ many bugs (see examples below).
 
 ## Just the REPL please ##
 
-If you just want to the bootstrapped ClojureScript REPL, you can
-download a pre-built version and run it like this:
+If you just want to the bootstrapped ClojureScript REPL, you try the
+web version at
+[http://kanaka.github.io/cljs-bootstrap/](http://kanaka.github.io/cljs-bootstrap/)
+can download a pre-built Node.js version and run it like this:
 
 ```
 wget https://gist.githubusercontent.com/kanaka/b588dbb6d44174672cc2/raw/90718328795e21b18b6828f91fd69b7a3da9f05b/repl-all.js
