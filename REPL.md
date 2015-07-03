@@ -11,8 +11,7 @@ many bugs (see examples below).
 ## Just the REPL please ##
 
 If you just want to the bootstrapped ClojureScript REPL, you try the
-web version at
-[clojurescript.net](http://clojurescript.net)
+web version at [clojurescript.net](http://clojurescript.net) or you
 can download a pre-built Node.js version and run it like this:
 
 ```
