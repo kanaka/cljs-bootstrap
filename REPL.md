@@ -96,19 +96,41 @@ cljs-bootstrap.repl> (and 1 2 3 4)
 4
 cljs-bootstrap.repl> (map #(.toUpperCase %) ["hello" "allcaps" "world"])
 ("HELLO" "ALLCAPS" "WORLD")
+cljs-bootstrap.repl> (.toString (reify Object (toString [this] "hello")))
+"hello"
+cljs-bootstrap.repl> (defprotocol IFoo (foo [this]))
+nil
+cljs-bootstrap.repl> (foo (reify IFoo (foo [this] (prn "lots of foo"))))
+"lots of foo"
+nil
+cljs-bootstrap.repl> (deftype Bar [] IFoo (foo [this] (prn "some bar too")))
+cljs-bootstrap.repl/Bar
+cljs-bootstrap.repl> (foo (Bar.))
+"some bar too"
+nil
+
 ```
 
-* Try some things that do not work:
+* Try some things that do not work yet:
 
 ```clojure
-cljs-bootstrap.repl> (load-file "simple.cljs")  ; Treated as JS file
-simple.cljs:1
-(prn "here we are")
-     ^^^^^^^^^^^^^
-SyntaxError: Unexpected string
+cljs-bootstrap.repl> (defprotocol IFoo (foo [this]))
+cljs-bootstrap.repl> (defrecord Baz [b] IFoo (foo [this] (prn "some baz:" b)))  ; CLJS-1321 & CLJS-1325
+Error: Can't set! local var or non-mutable field
 ...
 
-cljs-bootstrap.repl> (ns my-ns) ;; Does nothing
+cljs-bootstrap.repl> 0  ; CLJS-1326
+Error: Invalid number format [0]
+...
+
+cljs-bootstrap.repl> (load-file "simple.cljs")  ; Treated as JS file
+#<SyntaxError: simple.cljs:1
+(prn "here we are")
+     ^^^^^^^^^^^^^
+Unexpected string>
+...
+
+cljs-bootstrap.repl> (ns cljs-bootstrap.my-ns)  ; Does nothing
 nil
 
 ```
