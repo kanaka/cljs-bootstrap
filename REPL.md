@@ -10,8 +10,9 @@ many bugs (see examples below).
 
 ## Just the REPL please ##
 
-If you just want to the bootstrapped ClojureScript REPL, you can
-download a pre-built version and run it like this:
+If you just want to the bootstrapped ClojureScript REPL, you try the
+web version at [clojurescript.net](http://clojurescript.net) or you
+can download a pre-built Node.js version and run it like this:
 
 ```
 wget https://gist.githubusercontent.com/kanaka/b588dbb6d44174672cc2/raw/90718328795e21b18b6828f91fd69b7a3da9f05b/repl-all.js
@@ -80,79 +81,73 @@ node repl.js
 * Try some code that works:
 
 ```clojure
-cljs-bootstrap.repl> :foo
+cljs.user> :foo
 :foo
-cljs-bootstrap.repl> 123
+cljs.user> 123
 123
-cljs-bootstrap.repl> (+ 2 3)
+cljs.user> (+ 2 3)
 5
-cljs-bootstrap.repl> (second [2 3 4])
+cljs.user> (second [2 3 4])
 3
-cljs-bootstrap.repl> ( (fn [a b] (* a b)) 3 4)
+cljs.user> ( (fn [a b] (* a b)) 3 4)
 12
-cljs-bootstrap.repl> ( #(* %1 %2) 4 5)
+cljs.user> ( #(* %1 %2) 4 5)
 20
-cljs-bootstrap.repl> ( #(* %1 %2) 4 5)
+cljs.user> ( #(* %1 %2) 4 5)
 20
-cljs-bootstrap.repl> (do (prn :foo) (prn :bar) :baz)
+cljs.user> (do (prn :foo) (prn :bar) :baz)
 :foo
 :bar
 :baz
-cljs-bootstrap.repl> (def x 3)
-#'cljs-bootstrap.repl/x
-cljs-bootstrap.repl> (def foo (fn [a b] (* a b)))
-#'cljs-bootstrap.repl/foo
-cljs-bootstrap.repl> (foo 6 7)
+cljs.user> (def x 3)
+#'cljs.user/x
+cljs.user> (def foo (fn [a b] (* a b)))
+#'cljs.user/foo
+cljs.user> (foo 6 7)
 42
-cljs-bootstrap.repl> (defn bar [a b] (* a b))
-#'cljs-bootstrap.repl/bar
-cljs-bootstrap.repl> (bar 7 8)
+cljs.user> (defn bar [a b] (* a b))
+#'cljs.user/bar
+cljs.user> (bar 7 8)
 56
-cljs-bootstrap.repl> (let* [x 7 y (+ 1 x)] y)
+cljs.user> (let* [x 7 y (+ 1 x)] y)
 8
-cljs-bootstrap.repl> (meta (with-meta [2 3 4] {:a 123}))
+cljs.user> (meta (with-meta [2 3 4] {:a 123}))
 {:a 123}
-cljs-bootstrap.repl> (let [[x y] [3 4] z (+ x y)] (* x y z))
+cljs.user> (let [[x y] [3 4] z (+ x y)] (* x y z))
 84
-cljs-bootstrap.repl> (and 1 2 3 4)
+cljs.user> (and 1 2 3 4)
 4
-cljs-bootstrap.repl> (map #(.toUpperCase %) ["hello" "allcaps" "world"])
+cljs.user> (map #(.toUpperCase %) ["hello" "allcaps" "world"])
 ("HELLO" "ALLCAPS" "WORLD")
-cljs-bootstrap.repl> (.toString (reify Object (toString [this] "hello")))
+cljs.user> (.toString (reify Object (toString [this] "hello")))
 "hello"
-cljs-bootstrap.repl> (defprotocol IFoo (foo [this]))
+cljs.user> (defprotocol IFoo (foo [this]))
 nil
-cljs-bootstrap.repl> (foo (reify IFoo (foo [this] (prn "lots of foo"))))
+cljs.user> (foo (reify IFoo (foo [this] (prn "lots of foo"))))
 "lots of foo"
 nil
-cljs-bootstrap.repl> (deftype Bar [] IFoo (foo [this] (prn "some bar too")))
-cljs-bootstrap.repl/Bar
-cljs-bootstrap.repl> (foo (Bar.))
+cljs.user> (deftype Bar [] IFoo (foo [this] (prn "some bar too")))
+cljs.user/Bar
+cljs.user> (foo (Bar.))
 "some bar too"
 nil
-
+cljs.user> (defrecord Baz [b] IFoo (foo [this] (prn "some baz:" b)))  ; works but warnings
+WARNING: No such namespace: core, could not locate core.cljs, core.cljc, or Closure namespace ""
+WARNING: Use of undeclared Var core/list
+cljs.user/Baz
 ```
 
 * Try some things that do not work yet:
 
 ```clojure
-cljs-bootstrap.repl> (defprotocol IFoo (foo [this]))
-cljs-bootstrap.repl> (defrecord Baz [b] IFoo (foo [this] (prn "some baz:" b)))  ; CLJS-1321 & CLJS-1325
-Error: Can't set! local var or non-mutable field
-...
-
-cljs-bootstrap.repl> 0  ; CLJS-1326
-Error: Invalid number format [0]
-...
-
-cljs-bootstrap.repl> (load-file "simple.cljs")  ; Treated as JS file
+cljs.user> (load-file "simple.cljs")  ; Treated as JS file
 #<SyntaxError: simple.cljs:1
 (prn "here we are")
      ^^^^^^^^^^^^^
 Unexpected string>
 ...
 
-cljs-bootstrap.repl> (ns cljs-bootstrap.my-ns)  ; Does nothing
+cljs.user> (ns cljs-bootstrap.my-ns)  ; Does nothing
 nil
 
 ```

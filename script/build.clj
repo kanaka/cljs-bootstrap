@@ -29,10 +29,13 @@
                      :source-map true
                      :def-emits-var true)]
     (env/with-compiler-env (env/default-compiler-env opts)
-      (let [;; Generate core$macros
-            deps-macros (compile1 copts "cljs/core.cljc")
-            ;; Compile main file
-            deps (compile1 copts file)]
+      (let [;; Compile main file
+            deps (compile1 copts file)
+            ;; Generate/compile core$macros
+            ;; For some reason, this needs to happen after the main
+            ;; file or else evaluation of "0" doesn't work:
+            ;; https://github.com/mfikes/replete/issues/8
+            deps-macros (compile1 copts "cljs/core.cljc")]
           ;; output unoptimized code and the deps file
           ;; for all compiled namespaces
           (apply closure/output-unoptimized

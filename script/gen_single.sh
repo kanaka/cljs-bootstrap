@@ -31,8 +31,15 @@ deps="$(cat ${TOP_DIR}/${DEP_FILE} | awk -F'"' '{print $2}' | egrep -v '^base.js
 
 echo "Adding Google Closure Library deps ${TOP_DIR}/deps.js"
 goog_deps="$(cat ${TOP_DIR}/deps.js| awk -F"'" '{print $2}' | egrep -v '^base.js$')"
-# Make sure debug/error.js is included first
-goog_deps="debug/error.js ${goog_deps}"
+# Make sure certain deps occur first
+goog_deps="debug/error.js
+           string/string.js
+           labs/useragent/util.js
+           labs/useragent/browser.js
+           labs/useragent/engine.js
+           labs/useragent/platform.js
+           useragent/useragent.js
+           ${goog_deps}"
 
 # Only add google closure deps that actually appear in the tree
 real_goog_deps=""
@@ -104,6 +111,11 @@ macros_edn_cache = ${macros_edn};
 " >> ${TARGET}
 
 echo "Adding calls to load_cache and read_eval_print_loop"
+if [ "${WEB}" ]; then
+  echo "cljs_bootstrap.repl.init_repl('default');" >> ${TARGET}
+else
+  echo "cljs_bootstrap.repl.init_repl('nodejs');" >> ${TARGET}
+fi
 echo "cljs_bootstrap.repl.load_edn_caches(core_edn_cache, macros_edn_cache);" >> ${TARGET}
 if [ -z "${WEB}" ]; then
     echo "cljs_bootstrap.repl.read_eval_print_loop();" >> ${TARGET}
