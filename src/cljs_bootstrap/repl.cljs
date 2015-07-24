@@ -21,18 +21,15 @@
                  (fn [res] nil)))
 
 ;; load edn namespace caches into compiler environment
-(defn load-edn-caches [core-edn macros-edn]
+(defn load-edn-caches [core-edn]
   (swap! cstate assoc-in [::ana/namespaces 'cljs.core]
-    (edn/read-string core-edn))
-  (swap! cstate assoc-in [::ana/namespaces 'cljs.core$macros]
-    (edn/read-string macros-edn)))
+    (edn/read-string core-edn)))
 
 ;; load namespace cache files
 (defn load-edn-cache-files []
   (let [fs (js/require "fs")
-        core-edn (.readFileSync fs "resources/cljs/core.cljs.cache.aot.edn" "utf8")
-        macros-edn (.readFileSync fs ".cljs_bootstrap/cljs/core$macros.cljc.cache.edn" "utf8")]
-    (load-edn-caches core-edn macros-edn)))
+        core-edn (.readFileSync fs ".cljs_bootstrap/cljs/core.cljs.cache.aot.edn" "utf8")]
+    (load-edn-caches core-edn)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Main REPL loop
