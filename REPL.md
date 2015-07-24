@@ -135,6 +135,9 @@ cljs.user> (defrecord Baz [b] IFoo (foo [this] (prn "some baz:" b)))  ; works bu
 WARNING: No such namespace: core, could not locate core.cljs, core.cljc, or Closure namespace ""
 WARNING: Use of undeclared Var core/list
 cljs.user/Baz
+cljs.user> (foo (Baz. 5))
+"some baz:" 5
+nil
 ```
 
 * Try some things that do not work yet:

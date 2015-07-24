@@ -13,15 +13,6 @@
     deps))
 
 (defn build [dir file opts]
-  ;; Used to generate core$macros
-  (io/make-parents "resources/cljs/core.cljc")
-  ;; TODO: only do this if timestamps are newer
-  ;;(if (not (.exists (io/as-file "resources/cljs/core.cljc"))))
-  (spit "resources/cljs/core.cljc" (slurp (io/resource "cljs/core.cljc")))
-  (spit "resources/cljs/core.cljs" (slurp (io/resource "cljs/core.cljs")))
-  ;; Compilation core.cljc below breaks if the cache file is present
-  (io/delete-file "resources/cljs/core.cljs.cache.aot.edn" true)
-
   (let [output-dir (io/file dir)
         copts (assoc opts
                      :output-dir output-dir
@@ -29,26 +20,22 @@
                      :source-map true
                      :def-emits-var true)]
     (env/with-compiler-env (env/default-compiler-env opts)
-      (let [;; Compile main file
-            deps (compile1 copts file)
-            ;; Generate/compile core$macros
-            ;; For some reason, this needs to happen after the main
-            ;; file or else evaluation of "0" doesn't work:
-            ;; https://github.com/mfikes/replete/issues/8
-            deps-macros (compile1 copts "cljs/core.cljc")]
-          ;; output unoptimized code and the deps file
-          ;; for all compiled namespaces
-          (apply closure/output-unoptimized
-            (assoc copts
-              :output-to (.getPath (io/file output-dir "deps.js")))
-            (concat deps-macros deps))
-          ;; Google Closure Library node compatibility shim
-          (let [path (.getPath (io/file output-dir "goog/bootstrap/nodejs.js"))]
-            (io/make-parents path)
-            (spit path (slurp (io/resource "cljs/bootstrap_node.js")))))))
+      ;; output unoptimized code and the deps file
+      ;; for all compiled namespaces
+      (apply closure/output-unoptimized
+        (assoc copts
+          :output-to (.getPath (io/file output-dir "deps.js")))
+        (compile1 copts file))
 
-  ;; TODO: this should really come from the compilation above
-  (spit "resources/cljs/core.cljs.cache.aot.edn" (slurp (io/resource "cljs/core.cljs.cache.aot.edn"))))
+      ;; Google Closure Library node compatibility shim
+      (let [path (.getPath (io/file output-dir "goog/bootstrap/nodejs.js"))]
+        (io/make-parents path)
+        (spit path (slurp (io/resource "cljs/bootstrap_node.js")))))
+
+      ;; TODO: shouldn't this come from the compilation above?
+      (let [path (.getPath (io/file output-dir "cljs/core.cljs.cache.aot.edn"))]
+        (spit path (slurp (io/resource "cljs/core.cljs.cache.aot.edn"))))))
+
 
 (println "Building cljs_bootstrap")
 ;;(build ".cljs_bootstrap" "cljs_bootstrap/core.cljs" nil)

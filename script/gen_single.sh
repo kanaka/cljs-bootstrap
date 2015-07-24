@@ -10,8 +10,7 @@ TOP_DIR=${TOP_DIR:-.cljs_bootstrap/goog/}
 DEP_FILE=${DEP_FILE:-../deps.js}
 COMPILER_JAR=${COMPILER_JAR:-compiler.jar}
 BASE_PATCH=${BASE_PATCH:-script/base.patch}
-CORE_EDN=${CORE_EDN:-resources/cljs/core.cljs.cache.aot.edn}
-MACROS_EDN=${MACROS_EDN:-.cljs_bootstrap/cljs/core\$macros.cljc.cache.edn}
+CORE_EDN=${CORE_EDN:-.cljs_bootstrap/cljs/core.cljs.cache.aot.edn}
 
 # Canonicalize paths
 TARGET=$(readlink -f ${TARGET})
@@ -22,7 +21,6 @@ if [ ! -f "${COMPILER_JAR}" ]; then
 fi
 COMPILER_JAR=$(readlink -f ${COMPILER_JAR})
 CORE_EDN=$(readlink -f ${CORE_EDN})
-MACROS_EDN=$(readlink -f ${MACROS_EDN})
 
 
 echo "Reading main deps file ${TOP_DIR}/${DEP_FILE}"
@@ -102,12 +100,10 @@ fi
 echo "Loading EDN cache files using node"
 # Grab these before we change directories
 core_edn="$(node -e "console.log(require('util').inspect(require('fs').readFileSync('${CORE_EDN}', 'utf-8')))")"
-macros_edn="$(node -e "console.log(require('util').inspect(require('fs').readFileSync('${MACROS_EDN}', 'utf-8')))")"
 
 echo "Adding inline EDN cache strings"
 echo "
 core_edn_cache = ${core_edn};
-macros_edn_cache = ${macros_edn};
 " >> ${TARGET}
 
 echo "Adding calls to load_cache and read_eval_print_loop"
@@ -116,7 +112,7 @@ if [ "${WEB}" ]; then
 else
   echo "cljs_bootstrap.repl.init_repl('nodejs');" >> ${TARGET}
 fi
-echo "cljs_bootstrap.repl.load_edn_caches(core_edn_cache, macros_edn_cache);" >> ${TARGET}
+echo "cljs_bootstrap.repl.load_edn_caches(core_edn_cache);" >> ${TARGET}
 if [ -z "${WEB}" ]; then
     echo "cljs_bootstrap.repl.read_eval_print_loop();" >> ${TARGET}
 fi
