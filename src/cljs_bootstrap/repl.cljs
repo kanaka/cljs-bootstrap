@@ -1,7 +1,5 @@
 (ns cljs-bootstrap.repl
-  (:require [cljs.analyzer :as ana]
-            [cljs.reader :as edn]
-            [cljs.js :as cljs]))
+  (:require [cljs.js :as cljs]))
 
 (def DEBUG false)
 
@@ -20,36 +18,27 @@
                  {:eval cljs/js-eval}
                  (fn [res] nil)))
 
-;; load edn namespace caches into compiler environment
-(defn load-edn-caches [core-edn]
-  (swap! cstate assoc-in [::ana/namespaces 'cljs.core]
-    (edn/read-string core-edn)))
-
-;; load namespace cache files
-(defn load-edn-cache-files []
-  (let [fs (js/require "fs")
-        core-edn (.readFileSync fs ".cljs_bootstrap/cljs/core.cljs.cache.aot.edn" "utf8")]
-    (load-edn-caches core-edn)))
-
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Main REPL loop
 ;;   - before calling read-eval*, call init-repl to initialize the
-;;     repl namespace and then load-edn-caches or load-edn-cache-files
-;;     to setup compiler environment
+;;     repl namespace
 
 (defn read-eval-print [s cb]
   (cljs/eval-str cstate
                  s
                  'cljs.user
                  {:verbose DEBUG
+                  :source-map true
                   :eval cljs/js-eval
                   :context :expr
                   :def-emits-var true}
-                 (fn [res]
+                 (fn [{:keys [error value] :as res}]
                    (when DEBUG (prn :result-data res))
-                   (if (contains? res :value)
-                     (cb true (pr-str (:value res)))
-                     (cb false (:error res))))))
+                   (if error
+                     (cb false (str error
+                                    "\n"
+                                    (.. error -cause -stack)))
+                     (cb true (pr-str value))))))
 
 ;; Node mode REPL
 (defn read-eval-print-loop []
@@ -58,7 +47,5 @@
                :input (.-stdin js/process)
                :output (.-stdout js/process)
                :eval (fn [cmd ctx filename cb]
-                       (read-eval-print cmd #(if %1
-                                               (cb %2)
-                                               (cb (pr-str %2)))))}))
+                       (read-eval-print cmd #(cb %2)))}))
 

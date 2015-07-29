@@ -30,11 +30,7 @@
       ;; Google Closure Library node compatibility shim
       (let [path (.getPath (io/file output-dir "goog/bootstrap/nodejs.js"))]
         (io/make-parents path)
-        (spit path (slurp (io/resource "cljs/bootstrap_node.js")))))
-
-      ;; TODO: shouldn't this come from the compilation above?
-      (let [path (.getPath (io/file output-dir "cljs/core.cljs.cache.aot.edn"))]
-        (spit path (slurp (io/resource "cljs/core.cljs.cache.aot.edn"))))))
+        (spit path (slurp (io/resource "cljs/bootstrap_node.js")))))))
 
 
 (println "Building cljs_bootstrap")

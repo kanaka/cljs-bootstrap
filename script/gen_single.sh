@@ -97,24 +97,12 @@ if [ -z "${WEB}" ]; then
     sed -i 's@\(goog.NODE_JS *= *\)false;@\1true;@' ${TARGET}
 fi
 
-echo "Loading EDN cache files using node"
-# Grab these before we change directories
-core_edn="$(node -e "console.log(require('util').inspect(require('fs').readFileSync('${CORE_EDN}', 'utf-8')))")"
-
-echo "Adding inline EDN cache strings"
-echo "
-core_edn_cache = ${core_edn};
-" >> ${TARGET}
-
-echo "Adding calls to load_cache and read_eval_print_loop"
+echo "Adding calls to init_repl and read_eval_print_loop"
 if [ "${WEB}" ]; then
   echo "cljs_bootstrap.repl.init_repl('default');" >> ${TARGET}
 else
   echo "cljs_bootstrap.repl.init_repl('nodejs');" >> ${TARGET}
-fi
-echo "cljs_bootstrap.repl.load_edn_caches(core_edn_cache);" >> ${TARGET}
-if [ -z "${WEB}" ]; then
-    echo "cljs_bootstrap.repl.read_eval_print_loop();" >> ${TARGET}
+  echo "cljs_bootstrap.repl.read_eval_print_loop();" >> ${TARGET}
 fi
 
 echo "Finished: ${TARGET}"

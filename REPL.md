@@ -63,16 +63,20 @@ time lein run -m clojure.main script/build.clj
 ```
 
 * Optionally, you can now build/compile the sources into a single
-  standalone JavaScript file `repl-all.js` (as per the gist above):
+  standalone JavaScript file `repl-node.js` (as per the gist above):
 
 ```
 ./script/gen_single.sh
+    # OR repl-web.js web version
+WEB=1 ./script/gen_single.sh
 ```
 
 * Run the REPL using a Node launch script:
 
 ```bash
 node repl.js
+    # OR, run single file version
+node repl-node.js
 ```
 
 ## Examples ##
@@ -131,9 +135,7 @@ cljs.user/Bar
 cljs.user> (foo (Bar.))
 "some bar too"
 nil
-cljs.user> (defrecord Baz [b] IFoo (foo [this] (prn "some baz:" b)))  ; works but warnings
-WARNING: No such namespace: core, could not locate core.cljs, core.cljc, or Closure namespace ""
-WARNING: Use of undeclared Var core/list
+cljs.user> (defrecord Baz [b] IFoo (foo [this] (prn "some baz:" b)))
 cljs.user/Baz
 cljs.user> (foo (Baz. 5))
 "some baz:" 5
