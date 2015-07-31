@@ -1,55 +1,113 @@
 (ns cljs-bootstrap.repl
-  (:require [cljs.analyzer :as ana]
-            [cljs.reader :as edn]
-            [cljs.js :as cljs]))
+  (:require [cljs.js :as cljs]
+            [cljs.stacktrace :as cljs-stack]))
 
 (def DEBUG false)
 
 (cljs.core/enable-console-print!)
 
-;;(def vm (js/require "vm"))
-
 (def cstate (cljs/empty-state))
 
-(defn init-repl [mode]
+(def native-eval #(throw "eval function not set"))
+
+(defn get-native-eval []
+  (if (= *target* "nodejs")
+    (let [vm (js/require "vm")]
+      (try
+        (.install (js/require "source-map-support"))
+        (catch :default _
+          (println "Could not load source-map support")))
+      (fn [{:keys [name source] :as res}]
+        ;(.runInThisContext vm source (str (munge name) ".js"))
+        (cljs/js-eval res)
+        ))
+    cljs/js-eval))
+
+;; Does not fully work yet
+;;(def ^:dynamic *lib-base-path* "src/")
+(def ^:dynamic *lib-base-path* "src/")
+(def ^:dynamic *lib-type-map*
+  {'hello-world.core   :cljs
+   'hello-world.macros :clj})
+
+;; Setup source/require resolution
+(defn set-load-cfg [& {:keys [lib-base-path lib-type-map]}]
+  (when lib-base-path (set! *lib-base-path* lib-base-path))
+  (when lib-type-map  (set! *lib-type-map*  lib-type-map))
+  nil)
+
+(defn native-load [{:keys [name macros]} cb]
+  (if (contains? *lib-type-map* name)
+    (let [path (str *lib-base-path* (cljs/ns->relpath name)
+                    "." (cljs.core/name (get *lib-type-map* name)))]
+      (if (= *target* "nodejs")
+        ;; node: read file using fs module
+        (let [fs (js/require "fs")]
+          (.readFile fs path "utf-8"
+            (fn [err src]
+              (if-not err
+                (cb {:lang :clj :source src})
+                ;(cb (.error js/console err))
+                (throw err)))))
+        ;; browser: read file using XHR
+        (let [url (str (.. js/window -location -origin) "/" path)
+              req (doto (js/XMLHttpRequest.)
+                    (.open "GET" url))]
+          (set! (.-onreadystatechange req)
+                (fn []
+                  (when (= 4 (.-readyState req))
+                    (if (= 200 (.-status req))
+                      (let [src (.. req -responseText)]
+                        (cb {:lang :clj :source src}))
+                      (let [emsg (str "XHR load failed:" (.-status req))]
+                        ;(.error js/console emsg)
+                        ;(cb nil)
+                        (throw (js/Error. emsg)))))))
+          (.send req))))
+    ;(cb (.error js/console (str "No *lib-type-map* entry for " name)))
+    (throw (js/Error. (str "No *lib-type-map* entry for " name)))))
+
+
+(defn init-repl [mode & load-opts]
   (set! *target* mode)
-  ;; Setup the initial repl namespace
+  (set! native-eval (get-native-eval))
+  ;; Setup source/require resolution
+  (apply set-load-cfg load-opts)
+  ;; Create cljs.user
+  ;; TODO: for some reason this is required when (ns) contains
+  ;; a :require clause otherwise cljs.user is not setup properly
+  (if (= *target* "nodejs")
+    (set! (.. js/global -cljs -user) #js {})
+    (set! (.. js/window -cljs -user) #js {}))
   (cljs/eval-str cstate
-                 "(ns cljs.user)"
+                 "(ns cljs.user (:require [cljs-bootstrap.repl]))"
+                 ;"(ns cljs.user)"
                  'cljs.user
                  {:eval cljs/js-eval}
                  (fn [res] nil)))
 
-;; load edn namespace caches into compiler environment
-(defn load-edn-caches [core-edn]
-  (swap! cstate assoc-in [::ana/namespaces 'cljs.core]
-    (edn/read-string core-edn)))
-
-;; load namespace cache files
-(defn load-edn-cache-files []
-  (let [fs (js/require "fs")
-        core-edn (.readFileSync fs ".cljs_bootstrap/cljs/core.cljs.cache.aot.edn" "utf8")]
-    (load-edn-caches core-edn)))
-
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Main REPL loop
 ;;   - before calling read-eval*, call init-repl to initialize the
-;;     repl namespace and then load-edn-caches or load-edn-cache-files
-;;     to setup compiler environment
+;;     repl namespace
 
 (defn read-eval-print [s cb]
   (cljs/eval-str cstate
                  s
                  'cljs.user
                  {:verbose DEBUG
-                  :eval cljs/js-eval
+                  :source-map true
+                  :eval native-eval
+                  :load native-load
                   :context :expr
                   :def-emits-var true}
-                 (fn [res]
-                   (when DEBUG (prn :result-data res))
-                   (if (contains? res :value)
-                     (cb true (pr-str (:value res)))
-                     (cb false (:error res))))))
+                 (fn [{:keys [error value] :as res}]
+                   (try
+                     (if error
+                       (cb false (.. error -cause))
+                       (cb true (pr-str value)))
+                     (catch :default exc
+                       (cb false exc))))))
 
 ;; Node mode REPL
 (defn read-eval-print-loop []
@@ -58,7 +116,5 @@
                :input (.-stdin js/process)
                :output (.-stdout js/process)
                :eval (fn [cmd ctx filename cb]
-                       (read-eval-print cmd #(if %1
-                                               (cb %2)
-                                               (cb (pr-str %2)))))}))
+                       (read-eval-print cmd #(cb %2)))}))
 

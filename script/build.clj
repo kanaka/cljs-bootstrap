@@ -18,7 +18,9 @@
                      :output-dir output-dir
                      :cache-analysis true
                      :source-map true
-                     :def-emits-var true)]
+                     :def-emits-var true
+                     :static-fns true
+                     :optimize-constants true)]
     (env/with-compiler-env (env/default-compiler-env opts)
       ;; output unoptimized code and the deps file
       ;; for all compiled namespaces
@@ -30,11 +32,7 @@
       ;; Google Closure Library node compatibility shim
       (let [path (.getPath (io/file output-dir "goog/bootstrap/nodejs.js"))]
         (io/make-parents path)
-        (spit path (slurp (io/resource "cljs/bootstrap_node.js")))))
-
-      ;; TODO: shouldn't this come from the compilation above?
-      (let [path (.getPath (io/file output-dir "cljs/core.cljs.cache.aot.edn"))]
-        (spit path (slurp (io/resource "cljs/core.cljs.cache.aot.edn"))))))
+        (spit path (slurp (io/resource "cljs/bootstrap_node.js")))))))
 
 
 (println "Building cljs_bootstrap")
