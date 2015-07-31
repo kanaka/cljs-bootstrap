@@ -10,12 +10,12 @@
             [cljs.env :as env]
             [cljs.reader :as edn]))
 
+(comment
 (set! *target* "nodejs")
 (apply load-file ["./.cljs_node_repl/cljs/core$macros.js"])
 
 (def cenv (env/default-compiler-env))
 
-(comment
   ;; NOTE: pprint'ing the AST seems to fail
 
   ;; works

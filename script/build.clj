@@ -18,7 +18,9 @@
                      :output-dir output-dir
                      :cache-analysis true
                      :source-map true
-                     :def-emits-var true)]
+                     :def-emits-var true
+                     :static-fns true
+                     :optimize-constants true)]
     (env/with-compiler-env (env/default-compiler-env opts)
       ;; output unoptimized code and the deps file
       ;; for all compiled namespaces
