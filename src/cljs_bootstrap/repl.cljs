@@ -67,6 +67,15 @@
     ;(cb (.error js/console (str "No *lib-type-map* entry for " name)))
     (throw (js/Error. (str "No *lib-type-map* entry for " name)))))
 
+(def ^:dynamic *compiler-settings*
+  {:source-map true
+   :eval #'native-eval
+   :load #'native-load
+   :context :expr
+   :def-emits-var true})
+
+(def cljs-user-text
+  "(ns cljs.user (:require [cljs-bootstrap.repl]))")
 
 (defn init-repl [mode & load-opts]
   (set! *target* mode)
@@ -80,10 +89,11 @@
     (set! (.. js/global -cljs -user) #js {})
     (set! (.. js/window -cljs -user) #js {}))
   (cljs/eval-str cstate
-                 "(ns cljs.user (:require [cljs-bootstrap.repl]))"
+                 cljs-user-text
                  ;"(ns cljs.user)"
                  'cljs.user
-                 {:eval cljs/js-eval}
+                 (assoc *compiler-settings*
+                        :verbose DEBUG)
                  (fn [res] nil)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -95,12 +105,7 @@
   (cljs/eval-str cstate
                  s
                  'cljs.user
-                 {:verbose DEBUG
-                  :source-map true
-                  :eval native-eval
-                  :load native-load
-                  :context :expr
-                  :def-emits-var true}
+                 *compiler-settings*
                  (fn [{:keys [error value] :as res}]
                    (try
                      (if error
@@ -118,3 +123,21 @@
                :eval (fn [cmd ctx filename cb]
                        (read-eval-print cmd #(cb %2)))}))
 
+
+(defn -main [& args]
+  (init-repl "nodejs")
+  (if (> (count args) 2)
+    (let [path (nth args 2)
+          fs (js/require "fs")]
+      (.readFile fs path "utf-8"
+        (fn [err src]
+          (if err
+            (throw (js/Error. (str "Could not read" path)))
+            (read-eval-print src
+                             (fn [success result]
+                               (if success
+                                 (.log js/console result)
+                                 (throw result))))))))
+    (read-eval-print-loop)))
+
+(set! *main-cli-fn* -main)

@@ -70,7 +70,12 @@ else
 fi
 
 # Start with empty file
-cat /dev/null > ${TARGET}
+if [ "${WEB}" ]; then
+    cat /dev/null > ${TARGET}
+else
+    echo "#!/usr/bin/env node" > ${TARGET}
+    chmod +x ${TARGET}
+fi
 
 cmd="java -jar ${COMPILER_JAR} \
           --compilation_level WHITESPACE_ONLY \
@@ -99,10 +104,9 @@ fi
 
 echo "Adding calls to init_repl and read_eval_print_loop"
 if [ "${WEB}" ]; then
-  echo "cljs_bootstrap.repl.init_repl('default');" >> ${TARGET}
+    echo "cljs_bootstrap.repl.init_repl('default');" >> ${TARGET}
 else
-  echo "cljs_bootstrap.repl.init_repl('nodejs');" >> ${TARGET}
-  echo "cljs_bootstrap.repl.read_eval_print_loop();" >> ${TARGET}
+    echo "cljs_bootstrap.repl._main.apply({}, process.argv);" >> ${TARGET}
 fi
 
 echo "Finished: ${TARGET}"
