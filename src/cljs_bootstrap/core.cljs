@@ -33,7 +33,7 @@
   nil)
 
 (defn native-load* [extensions {:keys [name macros path] :as cfg} cb]
-  ;;(prn :extensions extensions :name name :macros macros :path path)
+  ;;(prn :native-load* :extensions extensions :name name :macros macros :path path)
   (let [file (str *lib-base-path* path (first extensions))]
     (if (= *target* "nodejs")
       ;; node: read file using fs module
@@ -163,7 +163,7 @@
     {:macros-ns macros-ns?
      :verbose   (:verbose @app-env)}
     (fn [res]
-      #_(println "require result:" res))))
+      (println "require result:" res))))
 
 (defn require-destructure [macros-ns? args]
   (let [[[_ sym] reload] args]
@@ -201,23 +201,23 @@
    (binding [ana/*cljs-ns* @current-ns
              *ns* (create-ns @current-ns)
              r/*data-readers* tags/*cljs-data-readers*]
-     (let [expression-form (and expression? (repl-read-string source))]
-       (if (repl-special? expression-form)
-         (let [env (assoc (ana/empty-env) :context :expr
-                                          :ns {:name @current-ns})]
-           (case (first expression-form)
-             in-ns (reset! current-ns (second (second expression-form)))
-             require (require-destructure false (rest expression-form))
-             require-macros (require-destructure true (rest expression-form))
-             doc (if (repl-specials (second expression-form))
-                   (repl/print-doc (repl-special-doc (second expression-form)))
-                   (repl/print-doc
-                     (let [sym (second expression-form)
-                           var (with-compiler-env st
-                                 (resolve env sym))]
-                       (:meta var)))))
-           (cb true (pr-str nil)))
-         (try
+     (try
+       (let [expression-form (and expression? (repl-read-string source))]
+         (if (repl-special? expression-form)
+           (let [env (assoc (ana/empty-env) :context :expr
+                                            :ns {:name @current-ns})]
+             (case (first expression-form)
+               in-ns (reset! current-ns (second (second expression-form)))
+               require (require-destructure false (rest expression-form))
+               require-macros (require-destructure true (rest expression-form))
+               doc (if (repl-specials (second expression-form))
+                     (repl/print-doc (repl-special-doc (second expression-form)))
+                     (repl/print-doc
+                       (let [sym (second expression-form)
+                             var (with-compiler-env st
+                                   (resolve env sym))]
+                         (:meta var)))))
+             (cb true (pr-str nil)))
            (cljs/eval-str
              st
              source
@@ -247,7 +247,7 @@
                      (set! *e error)
                      (cb false error)))
                (when error
-                 (cb false error)))))
-           (catch :default e
-             (cb false e))))))))
+                 (cb false error)))))))
+       (catch :default e
+         (cb false e))))))
 
