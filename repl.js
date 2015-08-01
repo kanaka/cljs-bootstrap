@@ -1,6 +1,6 @@
+#!/usr/bin/env node
 require('./.cljs_bootstrap/goog/bootstrap/nodejs.js')
 require('./.cljs_bootstrap/deps.js')
-goog.require('cljs_bootstrap.repl');
+goog.require('cljs_bootstrap.node');
 
-cljs_bootstrap.repl.init_repl('nodejs');
-cljs_bootstrap.repl.read_eval_print_loop();
+cljs_bootstrap.node._main.apply({}, process.argv);
