@@ -81,26 +81,24 @@ node repl-node.js
 
 ## Dynamic namespace loading ##
 
-The namespace loader largely works apart from the default REPL
-namespace not switching. To load arbitrary libraries you must
-configure the search path and library type mapping first. For example,
-to load the "joel.core" namespace from `src/joel/core.cljs`, you need
-to configure the loader like this:
+To load/evaluate arbitrary libraries/namespaces you must first configure the
+search path. For example, to load the "joel.core" namespace from
+`src/joel/core.cljs`, you need to configure the loader like this:
 
 ```
-cljs.user> (cljs-bootstrap.repl/set-load-cfg :lib-base-path "src/" :lib-type-map {'joel.core :cljs})
-  # Now you can load it like this, note the REPL namespace does not
-  # yet change to foo.bar
+cljs.user> (cljs-bootstrap.repl/set-load-cfg :lib-base-path "src/")
+```
+
+Now you can load it and use it like this:
+
+```
 cljs.user> (ns foo.bar (:require joel.core))
-cljs.user> (joel.core/some-fn 1 2 3)
+foo.bar> (joel.core/some-fn 1 2 3)
 ```
 
-The lib-base-path is the top of the relative search path. The
-lib-type-map is a map of namespace symbols to Clojure file type:
-":cljs" for regular ClojureScript files, ":clj" for ClojureScript
-macro files. Yes, macros are supported in by bootstrapped
-ClojureScript but they still must live in a separate file from regular
-ClojureScript code.
+Macros are supported by bootstrapped ClojureScript but they still must live in
+a separate file from regular ClojureScript code and are loaded using
+:require-macros.
 
 
 
@@ -165,9 +163,6 @@ cljs.user/Baz
 cljs.user> (foo (Baz. 5))
 "some baz:" 5
 nil
-;; The following evaluates the files "src/hello_world/core.cljs" and
-;; "src/hello_world/macros.clj" correctly but does not switch the
-;; current namespace to foo.bar
 cljs.user> (ns foo.bar (:require [hello-world.core]) (:require-macros [hello-world.macros]))
 "prn from inside hello-world.core"
 "prn from inside hello-world.macros"
@@ -176,18 +171,22 @@ cljs.user> (hello-world.core/mult-fn 2 3)
 6
 cljs.user> (hello-world.macros/mult-macro 7 8)
 56
+cljs.user> (doc map)
+-------------------------
+
+([f] [f coll] [f c1 c2] [f c1 c2 c3] [f c1 c2 c3 & colls])
+...
 
 ```
 
 * Try some things that do not work yet:
 
 ```clojure
-;; Treated as JS file
-cljs.user> (load-file "simple.cljs")
-#<SyntaxError: simple.cljs:1
-(prn "here we are")
-     ^^^^^^^^^^^^^
-Unexpected string>
+cljs.user> (require ['hello-world.core])
+/home/joelm/scratch/cljs-bootstrap/.cljs_bootstrap/cljs/core.cljs:8272
+      x
+      ^
+Error: Doesn't support name: 
 ...
 
 ```

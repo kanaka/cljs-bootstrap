@@ -37,5 +37,5 @@
 
 (println "Building cljs_bootstrap")
 ;;(build ".cljs_bootstrap" "cljs_bootstrap/core.cljs" nil)
-(build ".cljs_bootstrap" "cljs_bootstrap/repl.cljs" nil)
+(build ".cljs_bootstrap" "cljs_bootstrap/node.cljs" nil)
 (println "Done building cljs_bootstrap")

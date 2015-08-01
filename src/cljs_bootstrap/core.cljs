@@ -1,164 +1,253 @@
 (ns cljs-bootstrap.core
-  (:require-macros [cljs.env.macros :refer [ensure with-compiler-env]]
-                   [cljs.analyzer.macros :refer [no-warn]])
-  (:require [cljs.pprint :refer [pprint]]
+  (:require-macros [cljs.env.macros :refer [with-compiler-env]])
+  (:require [cljs.js :as cljs]
             [cljs.tagged-literals :as tags]
             [cljs.tools.reader :as r]
-            [cljs.tools.reader.reader-types :refer [string-push-back-reader]]
             [cljs.analyzer :as ana]
-            [cljs.compiler :as c]
-            [cljs.env :as env]
-            [cljs.reader :as edn]))
+            [cljs.repl :as repl]))
 
-(comment
-(set! *target* "nodejs")
-(apply load-file ["./.cljs_node_repl/cljs/core$macros.js"])
+(def native-eval #(throw "eval function not set"))
 
-(def cenv (env/default-compiler-env))
+(defn get-native-eval []
+  (if (= *target* "nodejs")
+    (let [vm (js/require "vm")]
+      (try
+        (.install (js/require "source-map-support"))
+        (catch :default _
+          (println "Could not load source-map support")))
+      (fn [{:keys [name source] :as res}]
+        ;(.runInThisContext vm source (str (munge name) ".js"))
+        (cljs/js-eval res)
+        ))
+    cljs/js-eval))
 
-  ;; NOTE: pprint'ing the AST seems to fail
+;; Does not fully work yet
+(def ^:dynamic *lib-base-path* "src/")
+(def ^:dynamic *file-extensions*
+  {nil  [".cljs" ".cljc" ".js"]
+   true [".clj" ".cljc"]})
 
-  ;; works
-  (js/eval
-    (with-out-str
-      (c/emit
-        (ensure
-          (ana/analyze-keyword
-            (assoc (ana/empty-env) :context :expr)
-            :foo)))))
+;; Setup source/require resolution
+(defn set-load-cfg [& {:keys [lib-base-path]}]
+  (when lib-base-path (set! *lib-base-path* lib-base-path))
+  nil)
 
-  ;; works
-  (js/eval
-    (with-out-str
-      (c/emit
-        (ensure
-          (ana/analyze
-            (assoc (ana/empty-env) :context :expr)
-            '(+ 1 2))))))
+(defn native-load* [extensions {:keys [name macros path] :as cfg} cb]
+  ;;(prn :extensions extensions :name name :macros macros :path path)
+  (let [file (str *lib-base-path* path (first extensions))]
+    (if (= *target* "nodejs")
+      ;; node: read file using fs module
+      (let [fs (js/require "fs")]
+        (.readFile fs file "utf-8"
+          (fn [err src]
+            (if-not err
+              (cb {:lang :clj :source src})
+              (if (seq extensions)
+                (native-load* (next extensions) cfg cb)
+                ;(throw err))))))
+                ;(cb (.error js/console err))
+                (cb nil)
+                )))))
+      ;; browser: read file using XHR
+      (let [url (str (.. js/window -location -origin) "/" file)
+            req (doto (js/XMLHttpRequest.)
+                  (.open "GET" url))]
+        (set! (.-onreadystatechange req)
+              (fn []
+                (when (= 4 (.-readyState req))
+                  (if (= 200 (.-status req))
+                    (let [src (.. req -responseText)]
+                      (cb {:lang :clj :source src}))
+                    (let [emsg (str "XHR load failed:" (.-status req))]
+                      ;(.error js/console emsg)
+                      ;(cb nil)
+                      (if (seq extensions)
+                        (native-load* (next extensions) cfg cb)
+                        ;(throw (js/Error. emsg))
+                        ;(cb (.error js/console emsg))
+                        (cb nil)
+                        ))))))
+        (.send req)))))
 
-  ;; works
-  (ensure
-    (ana/get-expander
-      (first '(first [1 2 3]))
-      (assoc (ana/empty-env) :context :expr)))
+(defn native-load [{:keys [macros] :as cfg} cb]
+  (native-load* (get *file-extensions* macros) cfg cb))
 
-  ;; works
-  (let [form  '(second [1 2 3])
-        mform (ensure
-                (ana/macroexpand-1
-                  (assoc (ana/empty-env) :context :expr) form))]
-    (identical? form mform))
+(defn init-repl [mode & load-opts]
+  (set! *target* mode)
+  (set! native-eval (get-native-eval))
+  ;; Setup source/require resolution
+  (apply set-load-cfg load-opts)
+  ;; Create cljs.user
+  (if (= *target* "nodejs")
+    (set! (.. js/global -cljs -user) #js {})
+    (set! (.. js/window -cljs -user) #js {})))
 
-  ;; get the expected error if we use quote instead of syntax
-  ;; quote since cljs.core not yet analyzed
-  (ensure
-    (ana/parse-invoke
-      (assoc (ana/empty-env) :context :expr) `(second [1 2 3])))
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Begin section based on Planck core
 
-  ;; works
-  (ensure
-    (ana/analyze-seq
-      (assoc (ana/empty-env) :context :expr)
-      '(first [1 2 3]) nil nil))
+(defonce st (cljs/empty-state))
 
-  ;; works
-  ;; includes warning if not suppressed via no-warn
-  (js/eval
-    (with-out-str
-      (ensure
-        (c/emit
-          (no-warn
-            (ana/analyze-seq
-              (assoc (ana/empty-env) :context :expr)
-              `(first [1 2 3]) nil nil))))))
+(defonce current-ns (atom 'cljs.user))
 
-  ;; works, same as above
-  (js/eval
-    (with-out-str
-      (ensure
-        (c/emit
-          (no-warn
-            (ana/analyze
-              (assoc (ana/empty-env) :context :expr)
-              `(first [1 2 3])))))))
+(defonce app-env (atom nil))
 
-  ;; works
-  (js/eval
-    (with-out-str
-      (ensure
-        (c/emit
-          (no-warn
-            (ana/analyze
-              (assoc (ana/empty-env) :context :expr)
-              `((fn [a# b#] (+ a# b#)) 1 2)))))))
+(defn map-keys [f m]
+  (reduce-kv (fn [r k v] (assoc r (f k) v)) {} m))
 
-  (println
-    (with-out-str
-      (ensure
-        (c/emit
-          (no-warn
-            (ana/analyze
-              (assoc (ana/empty-env) :context :expr)
-              `((fn [a# b#] (+ a# b#)) 1 2)))))))
+(defn ^:export init-app-env [app-env]
+  (reset! app-env (map-keys keyword (cljs.core/js->clj app-env))))
 
-  (def fs (js/require "fs"))
+(defn repl-read-string [line]
+  (r/read-string {:read-cond :allow :features #{:cljs}} line))
 
-  ;; load cache files
+(defn ^:export is-readable? [line]
+  (binding [r/*data-readers* tags/*cljs-data-readers*]
+    (try
+      (repl-read-string line)
+      true
+      (catch :default _
+        false))))
 
-  (def core-edn (.readFileSync fs "resources/cljs/core.cljs.cache.aot.edn" "utf8"))
+(defn ns-form? [form]
+  (and (seq? form) (= 'ns (first form))))
 
-  (goog/isString core-edn)
+(def repl-specials '#{in-ns require require-macros doc})
 
-  (swap! cenv assoc-in [::ana/namespaces 'cljs.core]
-    (edn/read-string core-edn))
+(defn repl-special? [form]
+  (and (seq? form) (repl-specials (first form))))
 
-  (def macros-edn (.readFileSync fs ".cljs_node_repl/cljs/core$macros.cljc.cache.edn" "utf8"))
+(def repl-special-doc-map
+  '{in-ns          {:arglists ([name])
+                    :doc      "Sets *cljs-ns* to the namespace named by the symbol, creating it if needed."}
+    require        {:arglists ([& args])
+                    :doc      "Loads libs, skipping any that are already loaded."}
+    require-macros {:arglists ([& args])
+                    :doc      "Similar to the require REPL special function but
+                    only for macros."}
+    doc            {:arglists ([name])
+                    :doc      "Prints documentation for a var or special form given its name"}})
 
-  (goog/isString macros-edn)
+(defn- repl-special-doc [name-symbol]
+  (assoc (repl-special-doc-map name-symbol)
+    :name name-symbol
+    :repl-special-function true))
 
-  (swap! cenv assoc-in [::ana/namespaces 'cljs.core$macros]
-    (edn/read-string macros-edn))
 
-  ;; load standard lib
+(defn resolve
+  "Given an analysis environment resolve a var. Analogous to
+   clojure.core/resolve"
+  [env sym]
+  {:pre [(map? env) (symbol? sym)]}
+  (try
+    (ana/resolve-var env sym
+      (ana/confirm-var-exists-throw))
+    (catch :default _
+      (ana/resolve-macro-var env sym))))
 
-  (def f (.readFileSync fs "resources/cljs/core.cljs" "utf8"))
+(defn ^:export get-prompt []
+  (str @current-ns "=> "))
 
-  (goog/isString f)
+(defn extension->lang [extension]
+  (if (= ".js" extension)
+    :js
+    :clj))
 
-  ;; 2.5second on work machine
-  (time
-    (let [rdr (string-push-back-reader f)
-          eof (js-obj)]
-     (binding [*ns* (create-ns 'cljs.analyzer)
-               r/*data-readers* tags/*cljs-data-readers*]
-       (loop []
-         (let [x (r/read {:eof eof} rdr)]
-           (when-not (identical? eof x)
-             (recur)))))))
+(defn require [macros-ns? sym reload]
+  (cljs.js/require
+    {:*compiler*     st
+     :*data-readers* tags/*cljs-data-readers*
+     :*load-fn*      native-load
+     :*eval-fn*      native-eval}
+    sym
+    reload
+    {:macros-ns macros-ns?
+     :verbose   (:verbose @app-env)}
+    (fn [res]
+      #_(println "require result:" res))))
 
-  ;; doesn't work
-  (ensure
-    (no-warn
-      (ana/macroexpand-1 (ana/empty-env)
-        '(fn [x & {:keys [meta validator]}]
-           (Atom. x meta validator nil)))))
+(defn require-destructure [macros-ns? args]
+  (let [[[_ sym] reload] args]
+    (require macros-ns? sym reload)))
 
-  ;; doesn't work yet
-  ;; for some reason js ns not handled correctly
-  (time
-    (let [rdr (string-push-back-reader f)
-          eof (js-obj)
-          env (ana/empty-env)]
-      (binding [ana/*cljs-ns* 'cljs.user
-                *ns* (create-ns 'cljs.core)
-                r/*data-readers* tags/*cljs-data-readers*]
-        (with-compiler-env cenv
-          (loop []
-            (let [form (r/read {:eof eof} rdr)]
-              (when-not (identical? eof form)
-                (prn form)
-                (ana/analyze
-                  (assoc env :ns (ana/get-namespace ana/*cljs-ns*))
-                  form)
-                (recur))))))))
-  )
+(defn ^:export run-main [main-ns args]
+  (let [main-args (js->clj args)]
+    (require false (symbol main-ns) nil)
+    (cljs/eval-str st
+      (str "(var -main)")
+      nil
+      {:ns         (symbol main-ns)
+       :load       native-load
+       :eval       native-eval
+       :source-map false
+       :context    :expr}
+      (fn [{:keys [ns value error] :as ret}]
+        (apply value args)))
+    nil))
+
+(defn print-error [error]
+  (let [cause (.-cause error)]
+    (if cause
+      (do
+        (println (.-message cause))
+        (println (.-stack cause)))
+      (do
+        (println (.-message error))
+        (println (.-stack error))))))
+
+(defn ^:export read-eval-print
+  ([source cb]
+   (read-eval-print source true cb))
+  ([source expression? cb]
+   (binding [ana/*cljs-ns* @current-ns
+             *ns* (create-ns @current-ns)
+             r/*data-readers* tags/*cljs-data-readers*]
+     (let [expression-form (and expression? (repl-read-string source))]
+       (if (repl-special? expression-form)
+         (let [env (assoc (ana/empty-env) :context :expr
+                                          :ns {:name @current-ns})]
+           (case (first expression-form)
+             in-ns (reset! current-ns (second (second expression-form)))
+             require (require-destructure false (rest expression-form))
+             require-macros (require-destructure true (rest expression-form))
+             doc (if (repl-specials (second expression-form))
+                   (repl/print-doc (repl-special-doc (second expression-form)))
+                   (repl/print-doc
+                     (let [sym (second expression-form)
+                           var (with-compiler-env st
+                                 (resolve env sym))]
+                       (:meta var)))))
+           (cb true (pr-str nil)))
+         (try
+           (cljs/eval-str
+             st
+             source
+             (if expression? source "File")
+             (merge
+               {:ns         @current-ns
+                :load       native-load
+                :eval       native-eval
+                :source-map false
+                :verbose    (:verbose @app-env)}
+               (when expression?
+                 {:context       :expr
+                  :def-emits-var true}))
+             (fn [{:keys [ns value error] :as ret}]
+               (if expression?
+                 (if-not error
+                   (do
+                     (when-not
+                       (or ('#{*1 *2 *3 *e} expression-form)
+                         (ns-form? expression-form))
+                       (set! *3 *2)
+                       (set! *2 *1)
+                       (set! *1 value))
+                     (reset! current-ns ns)
+                     (cb true (pr-str value)))
+                   (do
+                     (set! *e error)
+                     (cb false error)))
+               (when error
+                 (cb false error)))))
+           (catch :default e
+             (cb false e))))))))
+

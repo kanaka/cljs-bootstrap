@@ -104,9 +104,9 @@ fi
 
 echo "Adding calls to init_repl and read_eval_print_loop"
 if [ "${WEB}" ]; then
-    echo "cljs_bootstrap.repl.init_repl('default');" >> ${TARGET}
+    echo "cljs_bootstrap.core.init_repl('default');" >> ${TARGET}
 else
-    echo "cljs_bootstrap.repl._main.apply({}, process.argv);" >> ${TARGET}
+    echo "cljs_bootstrap.node._main.apply({}, process.argv);" >> ${TARGET}
 fi
 
 echo "Finished: ${TARGET}"
