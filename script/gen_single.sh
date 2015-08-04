@@ -3,9 +3,8 @@
 set -e
 
 VERBOSE=${VERBOSE:-}
-WEB=${WEB:-}
-[ "${WEB}" ] && deftarget=repl-web.js || deftarget=repl-node.js
-TARGET=${TARGET:-${deftarget}}
+TARGET_WEB=${TARGET_NODE:-repl-web.js}
+TARGET_NODE=${TARGET_NODE:-repl-node.js}
 TOP_DIR=${TOP_DIR:-.cljs_bootstrap/goog/}
 DEP_FILE=${DEP_FILE:-../deps.js}
 COMPILER_JAR=${COMPILER_JAR:-compiler.jar}
@@ -13,7 +12,8 @@ BASE_PATCH=${BASE_PATCH:-script/base.patch}
 CORE_EDN=${CORE_EDN:-.cljs_bootstrap/cljs/core.cljs.cache.aot.edn}
 
 # Canonicalize paths
-TARGET=$(readlink -f ${TARGET})
+TARGET_WEB=$(readlink -f ${TARGET_WEB})
+TARGET_NODE=$(readlink -f ${TARGET_NODE})
 TOP_DIR=$(readlink -f ${TOP_DIR})
 if [ ! -f "${COMPILER_JAR}" ]; then
     echo "Could not locate ${COMPILER_JAR}"
@@ -52,30 +52,17 @@ done
 deps="${real_goog_deps} ${deps}"
 
 
-if [ "${WEB}" ]; then
-    echo "Adding base.js and deps files to the beginning of deps"
-    deps="base.js deps.js ${DEP_FILE} ${deps}"
+echo "Adding patched base.js and deps files to the beginning of deps"
+cp ${TOP_DIR}/base.js ${TOP_DIR}/base-node.js
+if [ "${VERBOSE}" ]; then
+    patch ${TOP_DIR}/base-node.js ${BASE_PATCH}
 else
-    echo "Adding patched base.js and deps files to the beginning of deps"
-    cp ${TOP_DIR}/base.js ${TOP_DIR}/base-node.js
-    if [ "${VERBOSE}" ]; then
-        patch ${TOP_DIR}/base-node.js ${BASE_PATCH}
-    else
-        patch -s ${TOP_DIR}/base-node.js ${BASE_PATCH}
-    fi
-    deps="base-node.js deps.js ${DEP_FILE} ${deps}"
-
-    echo "Adding Closure node bootstrap to the beginning of deps"
-    deps="bootstrap/nodejs.js base-node.js deps.js ../deps.js ${deps}"
+    patch -s ${TOP_DIR}/base-node.js ${BASE_PATCH}
 fi
+deps="base-node.js deps.js ${DEP_FILE} ${deps}"
 
 # Start with empty file
-if [ "${WEB}" ]; then
-    cat /dev/null > ${TARGET}
-else
-    echo "#!/usr/bin/env node" > ${TARGET}
-    chmod +x ${TARGET}
-fi
+cat /dev/null > ${TARGET_WEB}
 
 cmd="java -jar ${COMPILER_JAR} \
           --compilation_level WHITESPACE_ONLY \
@@ -93,20 +80,26 @@ done
 
 echo "Doing closure compilation"
 cd ${TOP_DIR}
-[ "${VERBOSE}" ] && echo "${cmd} >> ${TARGET}"
-${cmd} >> ${TARGET} 
+[ "${VERBOSE}" ] && echo "${cmd} >> ${TARGET_WEB}"
+${cmd} >> ${TARGET_WEB} 
 
-if [ -z "${WEB}" ]; then
-    echo "Enabling NODE_JS setting in ${TARGET}"
-    # TODO: Use `--define goog.NODE_JS=true` above if only it would work
-    sed -i 's@\(goog.NODE_JS *= *\)false;@\1true;@' ${TARGET}
-fi
+echo "Adding initalization calls to ${TARGET_WEB}"
+echo "
+if (goog.NODE_JS) {
+    cljs_bootstrap.node._main.apply({}, process.argv);
+} else {
+    cljs_bootstrap.core.init_repl('default');
+}" >> ${TARGET_WEB}
 
-echo "Adding calls to init_repl and read_eval_print_loop"
-if [ "${WEB}" ]; then
-    echo "cljs_bootstrap.core.init_repl('default');" >> ${TARGET}
-else
-    echo "cljs_bootstrap.node._main.apply({}, process.argv);" >> ${TARGET}
-fi
+# Node specific changes
 
-echo "Finished: ${TARGET}"
+echo "Copying ${TARGET_WEB} to ${TARGET_NODE}"
+echo "#!/usr/bin/env node" > ${TARGET_NODE}
+cat ${TARGET_WEB} >> ${TARGET_NODE}
+chmod +x ${TARGET_NODE}
+
+echo "Enabling NODE_JS setting in ${TARGET_NODE}"
+# TODO: Use `--define goog.NODE_JS=true` above if only it would work
+sed -i 's@\(goog.NODE_JS *= *\)false;@\1true;@' ${TARGET_NODE}
+
+echo "Finished creating ${TARGET_WEB} and ${TARGET_NODE}"
