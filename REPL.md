@@ -15,8 +15,8 @@ web version at [clojurescript.net](http://clojurescript.net) or you
 can download a pre-built Node.js version and run it like this:
 
 ```
-wget https://gist.githubusercontent.com/kanaka/b588dbb6d44174672cc2/raw/90718328795e21b18b6828f91fd69b7a3da9f05b/repl-all.js
-node repl-all.js
+curl https://gist.githubusercontent.com/kanaka/b588dbb6d44174672cc2/raw/ > repl-node.js
+node repl-node.js
 ```
 
 ## Build the REPL ##
