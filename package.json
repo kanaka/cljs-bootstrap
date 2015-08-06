@@ -1,0 +1,14 @@
+{
+    "name": "cljs",
+    "description": "Standalone ClojureScript REPL (bootstrapped)",
+    "version": "0.0.1",
+    "keywords": ["Clojure", "clojure", "ClojureScript", "clojurescript", "Lisp", "lisp", "macros", "interop", "lexical", "functional"],
+    "homepage": "https://github.com/kanaka/cljs-bootstrap",
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/kanaka/cljs-bootstrap.git"
+    },
+    "license": "EPL-1.0",
+    "bin": { "cljs": "./repl-node.js" }
+}
+
