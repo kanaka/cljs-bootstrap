@@ -37,7 +37,7 @@
         (fn [err src]
           (when err
             (throw (js/Error. (str "Could not read" path))))
-          (bootstrap/read-eval-print src
+          (bootstrap/read-eval-print (str "(do " src ")")
                            (fn [res data]
                              (when-not res
                                (bootstrap/print-error data)

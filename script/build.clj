@@ -1,41 +1,39 @@
 (ns script.bootstrap.build
   (:require [clojure.java.io :as io]
-            [cljs.closure :as closure]
-            [cljs.env :as env]))
+            [cljs.build.api :as api]
+            [cognitect.transit :as transit])
+  (:import [java.io ByteArrayOutputStream]))
 
-(defn compile1 [copts file]
-  (let [targ (io/resource file)
-        _ (println "Compiling:" targ)
-        core-js (closure/compile targ
-                  (assoc copts
-                    :output-file (closure/src-file->target-file targ)))
-        deps    (closure/add-dependencies copts core-js)]
-    deps))
-
-(defn build [dir file opts]
-  (let [output-dir (io/file dir)
-        copts (assoc opts
-                     :output-dir output-dir
-                     :cache-analysis true
-                     :source-map true
-                     :def-emits-var true
-                     :static-fns true
-                     :optimize-constants true)]
-    (env/with-compiler-env (env/default-compiler-env opts)
-      ;; output unoptimized code and the deps file
-      ;; for all compiled namespaces
-      (apply closure/output-unoptimized
-        (assoc copts
-          :output-to (.getPath (io/file output-dir "deps.js")))
-        (compile1 copts file))
-
-      ;; Google Closure Library node compatibility shim
-      (let [path (.getPath (io/file output-dir "goog/bootstrap/nodejs.js"))]
-        (io/make-parents path)
-        (spit path (slurp (io/resource "cljs/bootstrap_node.js")))))))
+(defn extract-analysis-cache [out-path]
+  (let [out (ByteArrayOutputStream. 1000000)
+        writer (transit/writer out :json)
+        cache (read-string
+                (slurp (io/resource "cljs/core.cljs.cache.aot.edn")))]
+    (transit/write writer cache)
+    (spit (io/file out-path) (.toString out))))
 
 
 (println "Building cljs_bootstrap")
-;;(build ".cljs_bootstrap" "cljs_bootstrap/core.cljs" nil)
-(build ".cljs_bootstrap" "cljs_bootstrap/node.cljs" nil)
+(api/build (api/inputs "src/cljs_bootstrap")
+  {:output-dir         ".cljs_bootstrap"
+   :output-to          ".cljs_bootstrap/deps.js"
+   :cache-analysis     true
+   :source-map         true
+   ;:source-map         ".cljs_bootstrap/source-map.json"
+   :optimizations      :none
+   ;:optimizations      :simple
+   :static-fns         true
+   :optimize-constants true
+   :dump-core          false
+   :verbose            true})
+
+(println "Extracting Google Closure Library node compatibility shim")
+(let [path ".cljs_bootstrap/goog/bootstrap/nodejs.js"]
+  (io/make-parents path)
+  (spit path (slurp (io/resource "cljs/bootstrap_node.js"))))
+
+(println "Using transit to extract core analysis cache")
+(extract-analysis-cache ".cljs_bootstrap/cljs/core.cljs.cache.aot.json")
+
 (println "Done building cljs_bootstrap")
+(System/exit 0)

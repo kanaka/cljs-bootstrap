@@ -4,7 +4,10 @@
             [cljs.tagged-literals :as tags]
             [cljs.tools.reader :as r]
             [cljs.analyzer :as ana]
-            [cljs.repl :as repl]))
+            [cljs.repl :as repl]
+            [cognitect.transit :as transit]))
+
+(defonce st (cljs/empty-state))
 
 (def native-eval #(throw "eval function not set"))
 
@@ -32,8 +35,8 @@
   (when lib-base-path (set! *lib-base-path* lib-base-path))
   nil)
 
-(defn native-load* [extensions {:keys [name macros path] :as cfg} cb]
-  ;;(prn :native-load* :extensions extensions :name name :macros macros :path path)
+(defn get-file* [extensions {:keys [path] :as cfg} cb]
+  ;;(prn :get-file* :extensions extensions :path path)
   (let [file (str *lib-base-path* path (first extensions))]
     (if (= *target* "nodejs")
       ;; node: read file using fs module
@@ -43,7 +46,7 @@
             (if-not err
               (cb {:lang :clj :source src})
               (if (seq extensions)
-                (native-load* (next extensions) cfg cb)
+                (get-file* (next extensions) cfg cb)
                 ;(throw err))))))
                 ;(cb (.error js/console err))
                 (cb nil)
@@ -62,7 +65,7 @@
                       ;(.error js/console emsg)
                       ;(cb nil)
                       (if (seq extensions)
-                        (native-load* (next extensions) cfg cb)
+                        (get-file* (next extensions) cfg cb)
                         ;(throw (js/Error. emsg))
                         ;(cb (.error js/console emsg))
                         (cb nil)
@@ -70,13 +73,20 @@
         (.send req)))))
 
 (defn native-load [{:keys [macros] :as cfg} cb]
-  (native-load* (get *file-extensions* macros) cfg cb))
+  (get-file* (get *file-extensions* macros) cfg cb))
 
-(defn init-repl [mode & load-opts]
+;; Load the JSON/transit analysis cache for cljs.core
+(defn load-core-analysis-cache [json]
+  ;(println "Loading analysis cache")
+  (let [rdr (transit/reader :json)
+        cache (transit/read rdr json)]
+    (cljs.js/load-analysis-cache! st 'cljs.core cache)))
+
+(defn init-repl [mode & init-opts]
   (set! *target* mode)
   (set! native-eval (get-native-eval))
   ;; Setup source/require resolution
-  (apply set-load-cfg load-opts)
+  (apply set-load-cfg init-opts)
   ;; Create cljs.user
   (if (= *target* "nodejs")
     (set! (.. js/global -cljs -user) #js {})
@@ -84,8 +94,6 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Begin section based on Planck core
-
-(defonce st (cljs/empty-state))
 
 (defonce current-ns (atom 'cljs.user))
 
