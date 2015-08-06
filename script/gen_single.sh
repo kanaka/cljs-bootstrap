@@ -9,7 +9,7 @@ TOP_DIR=${TOP_DIR:-.cljs_bootstrap/goog/}
 DEP_FILE=${DEP_FILE:-../deps.js}
 COMPILER_JAR=${COMPILER_JAR:-compiler.jar}
 BASE_PATCH=${BASE_PATCH:-script/base.patch}
-CORE_EDN=${CORE_EDN:-.cljs_bootstrap/cljs/core.cljs.cache.aot.edn}
+CORE_JSON=${CORE_JSON:-.cljs_bootstrap/cljs/core.cljs.cache.aot.json}
 
 # Canonicalize paths
 TARGET_WEB=$(readlink -f ${TARGET_WEB})
@@ -20,7 +20,7 @@ if [ ! -f "${COMPILER_JAR}" ]; then
     exit 1
 fi
 COMPILER_JAR=$(readlink -f ${COMPILER_JAR})
-CORE_EDN=$(readlink -f ${CORE_EDN})
+CORE_JSON=$(readlink -f ${CORE_JSON})
 
 
 echo "Reading main deps file ${TOP_DIR}/${DEP_FILE}"
@@ -83,8 +83,13 @@ cd ${TOP_DIR}
 [ "${VERBOSE}" ] && echo "${cmd} >> ${TARGET_WEB}"
 ${cmd} >> ${TARGET_WEB} 
 
+echo "Adding analysis cache JSON to file"
+core_json="$(node -e "console.log(require('util').inspect(require('fs').readFileSync('${CORE_JSON}', 'utf-8')))")"
+echo "var core_json = ${core_json};" >> ${TARGET_WEB}
+
 echo "Adding initalization calls to ${TARGET_WEB}"
 echo "
+cljs_bootstrap.core.load_core_analysis_cache(core_json);
 if (goog.NODE_JS) {
     cljs_bootstrap.node._main.apply({}, process.argv);
 } else {
