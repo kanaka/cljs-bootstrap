@@ -2,7 +2,7 @@
 
 This project uses bootstrapped ClojureScript to implement node.js and
 web ClojureScript REPLs. The bootstrapped aspect means that the REPLs
-run using only JavaScirpt files (i.e. without a JVM).
+run using only JavaScript files (i.e. without a JVM).
 
 Note: this was originally a fork of
 https://github.com/swannodette/cljs-bootstrap
